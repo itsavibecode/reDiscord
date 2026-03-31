@@ -14,8 +14,8 @@
 // @contributionURL https://www.buymeacoffee.com/vitim
 // @grant           none
 // @attribution     Original project (https://github.com/victornpb/undiscord)
-// @downloadURL https://update.greasyfork.org/scripts/406540/Undiscord.user.js
-// @updateURL 
+// @downloadURL https://github.com/itsavibecode/reDiscord/blob/main/reDiscordPurple.js
+// @updateURL https://github.com/itsavibecode/reDiscord/blob/main/reDiscordPurple.js
 // ==/UserScript==
 (function () {
 	'use strict';
