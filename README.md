@@ -1,7 +1,24 @@
 # reDiscord
 Like Undiscord but not.
 
+## Install
+
+In Tampermonkey, create a new script and paste the contents of
+`reDiscordPurple.js`, or point Tampermonkey at the raw URL:
+
+```
+https://raw.githubusercontent.com/itsavibecode/reDiscord/main/reDiscordPurple.js
+```
+
+This is also the `@updateURL`/`@downloadURL` baked into the header, so
+Tampermonkey will auto-update from `main`.
+
 ## Changelog
+
+### v5.3.1
+- Fix `@updateURL` and `@downloadURL`: they pointed at GitHub's `/blob/`
+  rendered-HTML page, which Tampermonkey can't parse. Switched to
+  `raw.githubusercontent.com` so auto-update actually works.
 
 ### v5.3.0
 - The GUI now remembers its last-used settings between page loads. Every input

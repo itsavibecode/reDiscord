@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.3.0
+// @version         5.3.1
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -14,14 +14,14 @@
 // @contributionURL https://www.buymeacoffee.com/vitim
 // @grant           none
 // @attribution     Original project (https://github.com/victornpb/undiscord)
-// @downloadURL https://github.com/itsavibecode/reDiscord/blob/main/reDiscordPurple.js
-// @updateURL https://github.com/itsavibecode/reDiscord/blob/main/reDiscordPurple.js
+// @downloadURL https://raw.githubusercontent.com/itsavibecode/reDiscord/main/reDiscordPurple.js
+// @updateURL https://raw.githubusercontent.com/itsavibecode/reDiscord/main/reDiscordPurple.js
 // ==/UserScript==
 (function () {
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.3.0";
+	const VERSION = "5.3.1";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
