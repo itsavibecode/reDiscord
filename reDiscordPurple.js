@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.2.6
+// @version         5.3.0
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.2.6";
+	const VERSION = "5.3.0";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -1366,14 +1366,19 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  $('button#start').onclick = startAction;
 	  $('button#stop').onclick = stopAction;
 	  $('button#clear').onclick = () => ui.logArea.innerHTML = '';
-	  $('button#getAuthor').onclick = () => $('input#authorId').value = getAuthorId();
+	  $('button#getAuthor').onclick = () => {
+	    $('input#authorId').value = getAuthorId();
+	    saveSettings();
+	  };
 	  $('button#getGuild').onclick = () => {
 	    const guildId = $('input#guildId').value = getGuildId();
 	    if (guildId === '@me') $('input#channelId').value = getChannelId();
+	    saveSettings();
 	  };
 	  $('button#getChannel').onclick = () => {
 	    $('input#channelId').value = getChannelId();
 	    $('input#guildId').value = getGuildId();
+	    saveSettings();
 	  };
 	  $('#redact').onchange = () => {
 	    const b = ui.undiscordWindow.classList.toggle('redact');
@@ -1383,14 +1388,20 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	    alert('Select a message on the chat.\nThe message below it will be redacted.');
 	    toggleWindow();
 	    const id = await messagePicker.grab('after');
-	    if (id) $('input#minId').value = id;
+	    if (id) {
+	      $('input#minId').value = id;
+	      saveSettings();
+	    }
 	    toggleWindow();
 	  };
 	  $('#pickMessageBefore').onclick = async () => {
 	    alert('Select a message on the chat.\nThe message above it will be redacted.');
 	    toggleWindow();
 	    const id = await messagePicker.grab('before');
-	    if (id) $('input#maxId').value = id;
+	    if (id) {
+	      $('input#maxId').value = id;
+	      saveSettings();
+	    }
 	    toggleWindow();
 	  };
 	  $('button#getToken').onclick = () => $('input#token').value = fillToken();
@@ -1436,6 +1447,7 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	      const channelIds = Object.keys(json);
 	      channelIdField.value = channelIds.join(',');
 	      log.info(`Loaded ${channelIds.length} channels.`);
+	      saveSettings();
 	    } catch(err) {
 	      log.error('Error parsing file!', err);
 	    }
@@ -1445,6 +1457,10 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  setLogFn(printLog);
 
 	  setupUndiscordCore();
+
+	  // restore previously-saved settings, then start tracking changes
+	  loadSettings();
+	  bindSettingsAutosave();
 	}
 
 	function printLog(type = '', args) {
@@ -1509,6 +1525,84 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  };
 	}
 
+	// ---- Settings persistence ----
+	// Token is intentionally excluded — it's a credential and is auto-filled per session.
+	const SETTINGS_KEY = 'rediscord-purple-settings';
+	const PERSISTED_FIELDS = [
+	  // text / number / datetime inputs
+	  { id: 'authorId',     prop: 'value' },
+	  { id: 'guildId',      prop: 'value' },
+	  { id: 'channelId',    prop: 'value' },
+	  { id: 'search',       prop: 'value' },
+	  { id: 'pattern',      prop: 'value' },
+	  { id: 'minId',        prop: 'value' },
+	  { id: 'maxId',        prop: 'value' },
+	  { id: 'minDate',      prop: 'value' },
+	  { id: 'maxDate',      prop: 'value' },
+	  { id: 'searchDelay',  prop: 'value' },
+	  { id: 'deleteDelay',  prop: 'value' },
+	  // checkboxes
+	  { id: 'includeNsfw',    prop: 'checked' },
+	  { id: 'nukeMode',       prop: 'checked' },
+	  { id: 'hasLink',        prop: 'checked' },
+	  { id: 'hasFile',        prop: 'checked' },
+	  { id: 'includePinned',  prop: 'checked' },
+	  { id: 'redact',         prop: 'checked' },
+	  { id: 'autoScroll',     prop: 'checked' },
+	];
+
+	function saveSettings() {
+	  try {
+	    const data = {};
+	    for (const f of PERSISTED_FIELDS) {
+	      const el = $('#' + f.id);
+	      if (!el) continue;
+	      data[f.id] = el[f.prop];
+	    }
+	    localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+	  } catch (e) {
+	    console.warn(PREFIX, 'saveSettings failed', e);
+	  }
+	}
+
+	function loadSettings() {
+	  let data = null;
+	  try {
+	    const raw = localStorage.getItem(SETTINGS_KEY);
+	    if (raw) data = JSON.parse(raw);
+	  } catch (e) {
+	    console.warn(PREFIX, 'loadSettings failed', e);
+	  }
+	  if (!data) return;
+	  for (const f of PERSISTED_FIELDS) {
+	    if (!(f.id in data)) continue;
+	    const el = $('#' + f.id);
+	    if (!el) continue;
+	    if (f.prop === 'checked') el.checked = !!data[f.id];
+	    else el.value = data[f.id] != null ? data[f.id] : '';
+	  }
+	  // sync derived UI state
+	  const sd = $('#searchDelay');
+	  if (sd) $('#searchDelayValue').textContent = sd.value + 'ms';
+	  const dd = $('#deleteDelay');
+	  if (dd) $('#deleteDelayValue').textContent = dd.value + 'ms';
+	  const redactCb = $('#redact');
+	  if (redactCb) ui.undiscordWindow.classList.toggle('redact', redactCb.checked);
+	  // mirror restored delays into core options so they take effect immediately
+	  const sdv = parseInt(($('#searchDelay') || {}).value);
+	  if (sdv) undiscordCore.options.searchDelay = sdv;
+	  const ddv = parseInt(($('#deleteDelay') || {}).value);
+	  if (ddv) undiscordCore.options.deleteDelay = ddv;
+	}
+
+	function bindSettingsAutosave() {
+	  for (const f of PERSISTED_FIELDS) {
+	    const el = $('#' + f.id);
+	    if (!el) continue;
+	    el.addEventListener('change', saveSettings);
+	  }
+	}
+
 	async function startAction() {
 	  console.log(PREFIX, 'startAction');
 	  // general
@@ -1539,6 +1633,9 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 
 	  // validate input
 	  if (!guildId) return log.error('You must fill the "Server ID" field!');
+
+	  // persist the just-committed settings so the next page load reopens with these values
+	  saveSettings();
 
 	  // clear logArea
 	  ui.logArea.innerHTML = '';
