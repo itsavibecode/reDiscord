@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.3.1
+// @version         5.3.2
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.3.1";
+	const VERSION = "5.3.2";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -452,7 +452,14 @@
 	const PREFIX$1 = '[REDISCORD]';
 
 	// The replacement text applied to every redacted message
-	const REDACT_TEXT = '||REDACTED||\n-# Content redacted. Full access requires subscription to Discord+ [Learn More](<https://youtu.be/wW89DayjjCY?si=4SrrzRTYL6R_5oE1&t=19>)';
+	const REDACT_TEXT = '🔒 Message has been Redacted.\n-# Full access requires subscription to Discord+ [Learn More](<https://youtu.be/wW89DayjjCY?si=4SrrzRTYL6R_5oE1&t=19>)';
+
+	// Prefixes used to detect "already redacted" messages so re-runs don't redo work.
+	// Legacy entries keep older redactions (from previous versions) recognized.
+	const REDACT_PREFIXES = [
+	  '🔒 Message has been Redacted.', // current (v5.3.2+)
+	  '||REDACTED||',                  // legacy (≤ v5.3.1)
+	];
 
 	/**
 	 * Delete all messages in a Discord channel or DM
@@ -768,7 +775,7 @@
 	    // skip messages that are already redacted (so re-running is safe)
 	    // BUT always keep messages with attachments — they still need to be deleted even if the text was already redacted
 	    messagesToDelete = messagesToDelete.filter(msg =>
-	      (msg.attachments && msg.attachments.length > 0) || !msg.content.startsWith('||REDACTED||')
+	      (msg.attachments && msg.attachments.length > 0) || !REDACT_PREFIXES.some(p => msg.content.startsWith(p))
 	    );
 
 	    // custom filter of messages

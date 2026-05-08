@@ -15,6 +15,13 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.3.2
+- Update the redaction text. Replaced messages now read
+  `🔒 Message has been Redacted.` with the small-text "Discord+" subscription
+  prompt below it (Rickroll link unchanged). The previous `||REDACTED||`
+  spoiler-block prefix is kept as a legacy match so messages redacted with
+  older versions are still recognized and skipped on re-runs.
+
 ### v5.3.1
 - Fix `@updateURL` and `@downloadURL`: they pointed at GitHub's `/blob/`
   rendered-HTML page, which Tampermonkey can't parse. Switched to
