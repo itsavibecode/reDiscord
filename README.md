@@ -15,6 +15,17 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.4.0
+- Add a "Redaction message" panel to the GUI. The replacement text is now
+  editable inline, and you can save any number of named presets (e.g. one
+  per server or vibe) to localStorage and switch between them from a
+  dropdown. The previous v5.3.2 lock-emoji + Discord+ paywall is the
+  built-in default and can't be overwritten — use **Save as…** to create
+  a copy you can edit. **Reset** restores the default. Whatever's in the
+  textarea at the moment you hit ▶︎ Redact is what gets used. The active
+  text's first line is also added to the "already redacted, skip on
+  re-run" check, so a custom message self-skips.
+
 ### v5.3.2
 - Update the redaction text. Replaced messages now read
   `🔒 Message has been Redacted.` with the small-text "Discord+" subscription

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.3.2
+// @version         5.4.0
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.3.2";
+	const VERSION = "5.4.0";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -48,6 +48,10 @@
 #undiscord input[type="datetime-local"],
 #undiscord input[type="number"],
 #undiscord input[type="range"] { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-size: 16px; height: 44px; padding: 12px 10px; transition: border-color .2s ease-in-out; width: 100%; }
+#undiscord textarea { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 10px; transition: border-color .2s ease-in-out; width: 100%; resize: vertical; min-height: 88px; }
+#undiscord textarea:focus { outline: none; border-color: #c084fc; }
+#undiscord select { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-size: 14px; height: 36px; padding: 6px 10px; width: 100%; }
+#undiscord select:focus { outline: none; border-color: #c084fc; }
 #undiscord input:focus { outline: none; border-color: #c084fc; }
 #undiscord .divider,
 #undiscord hr { border: none; margin-bottom: 24px; padding-bottom: 4px; border-bottom: 1px solid #6b4fa0; }
@@ -219,6 +223,29 @@
                     </div>
                     <div class="sectionDescription">
                         <label class="row"><input id="includeNsfw" type="checkbox">This is a NSFW channel</label>
+                    </div>
+                </fieldset>
+            </details>
+            <details open>
+                <summary>Redaction message</summary>
+                <fieldset>
+                    <legend>Saved messages</legend>
+                    <div class="multiInput mb1">
+                        <div class="input-wrapper">
+                            <select id="redactPresetSelect"></select>
+                        </div>
+                        <button id="redactPresetDelete" title="Delete the selected saved message">✕</button>
+                    </div>
+                    <legend>Replacement text</legend>
+                    <textarea id="redactText" rows="5" placeholder="The text every redacted message is replaced with…"></textarea>
+                    <div class="row" style="margin-top:8px; flex-wrap:wrap; gap:4px;">
+                        <button id="redactPresetSaveAs" style="width:auto;" title="Save the current text as a new preset">Save as…</button>
+                        <button id="redactPresetUpdate" style="width:auto;" title="Overwrite the selected preset with the current text">Update</button>
+                        <button id="redactPresetReset" style="width:auto;" title="Restore the built-in default text">Reset</button>
+                    </div>
+                    <div class="sectionDescription">
+                        Discord markdown works — <code>||spoilers||</code>, <code>[links](url)</code>, and <code>-#</code> subtext.
+                        Wrap URLs in <code>&lt;…&gt;</code> to suppress embeds.
                     </div>
                 </fieldset>
             </details>
@@ -451,13 +478,17 @@
 
 	const PREFIX$1 = '[REDISCORD]';
 
-	// The replacement text applied to every redacted message
-	const REDACT_TEXT = '🔒 Message has been Redacted.\n-# Full access requires subscription to Discord+ [Learn More](<https://youtu.be/wW89DayjjCY?si=4SrrzRTYL6R_5oE1&t=19>)';
+	// Default replacement text applied to redacted messages when the user hasn't
+	// customized one in the GUI. The active runtime text comes from
+	// undiscordCore.options.redactText (falls back to this).
+	const DEFAULT_REDACT_TEXT = '🔒 Message has been Redacted.\n-# Full access requires subscription to Discord+ [Learn More](<https://youtu.be/wW89DayjjCY?si=4SrrzRTYL6R_5oE1&t=19>)';
 
 	// Prefixes used to detect "already redacted" messages so re-runs don't redo work.
 	// Legacy entries keep older redactions (from previous versions) recognized.
+	// The active redactText's first line is added to this set at runtime so a
+	// user's custom message also self-skips on re-run.
 	const REDACT_PREFIXES = [
-	  '🔒 Message has been Redacted.', // current (v5.3.2+)
+	  '🔒 Message has been Redacted.', // current default (v5.3.2+)
 	  '||REDACTED||',                  // legacy (≤ v5.3.1)
 	];
 
@@ -486,6 +517,7 @@
 	    maxAttempt: 2, // Attempts to delete a single message if it fails
 	    askForConfirmation: true,
 	    nukeMode: false, // if true, delete everything regardless of type/content
+	    redactText: null, // text used to overwrite each message; null = use DEFAULT_REDACT_TEXT
 	  };
 
 	  state = {
@@ -774,8 +806,12 @@
 
 	    // skip messages that are already redacted (so re-running is safe)
 	    // BUT always keep messages with attachments — they still need to be deleted even if the text was already redacted
+	    // Include the active redact text's first line so a user's custom message self-skips on re-run.
+	    const activeRedactText = this.options.redactText || DEFAULT_REDACT_TEXT;
+	    const activePrefix = (activeRedactText.split('\n')[0] || '').trim();
+	    const allPrefixes = activePrefix ? [activePrefix, ...REDACT_PREFIXES] : REDACT_PREFIXES;
 	    messagesToDelete = messagesToDelete.filter(msg =>
-	      (msg.attachments && msg.attachments.length > 0) || !REDACT_PREFIXES.some(p => msg.content.startsWith(p))
+	      (msg.attachments && msg.attachments.length > 0) || !allPrefixes.some(p => msg.content.startsWith(p))
 	    );
 
 	    // custom filter of messages
@@ -835,7 +871,7 @@
 	    }
 	  }
 
-	  // PATCH the message content to REDACT_TEXT instead of deleting
+	  // PATCH the message content to the active redact text instead of deleting
 	  async editMessage(message) {
 	    const API_EDIT_URL = `https://discord.com/api/v9/channels/${message.channel_id}/messages/${message.id}`;
 	    let resp;
@@ -847,7 +883,7 @@
 	          'Authorization': this.options.authToken,
 	          'Content-Type': 'application/json',
 	        },
-	        body: JSON.stringify({ content: REDACT_TEXT }),
+	        body: JSON.stringify({ content: this.options.redactText || DEFAULT_REDACT_TEXT }),
 	      });
 	      this.afterRequest();
 	    } catch (err) {
@@ -1465,6 +1501,14 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 
 	  setupUndiscordCore();
 
+	  // seed the redact-message textarea with the built-in default before
+	  // loadSettings() runs (loadSettings will overwrite it if the user has
+	  // previously edited it). Then wire up the preset library.
+	  const ta = $('#redactText');
+	  if (ta) ta.value = DEFAULT_REDACT_TEXT;
+	  refreshPresetSelect(DEFAULT_PRESET_ID);
+	  bindPresetHandlers();
+
 	  // restore previously-saved settings, then start tracking changes
 	  loadSettings();
 	  bindSettingsAutosave();
@@ -1548,6 +1592,7 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  { id: 'maxDate',      prop: 'value' },
 	  { id: 'searchDelay',  prop: 'value' },
 	  { id: 'deleteDelay',  prop: 'value' },
+	  { id: 'redactText',   prop: 'value' },
 	  // checkboxes
 	  { id: 'includeNsfw',    prop: 'checked' },
 	  { id: 'nukeMode',       prop: 'checked' },
@@ -1610,6 +1655,119 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  }
 	}
 
+	// ---- Redaction-message presets ----
+	// Stored separately from the per-input settings so the preset library is
+	// independent of the live textarea content.
+	const PRESETS_KEY = 'rediscord-purple-redact-presets';
+	const DEFAULT_PRESET_ID = '__default__';
+
+	function loadPresetState() {
+	  try {
+	    const raw = localStorage.getItem(PRESETS_KEY);
+	    if (raw) {
+	      const parsed = JSON.parse(raw);
+	      if (Array.isArray(parsed.presets)) return parsed;
+	    }
+	  } catch (e) {
+	    console.warn(PREFIX, 'loadPresetState failed', e);
+	  }
+	  return { presets: [] };
+	}
+
+	function savePresetState(state) {
+	  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(state)); }
+	  catch (e) { console.warn(PREFIX, 'savePresetState failed', e); }
+	}
+
+	const presetState = loadPresetState();
+
+	function refreshPresetSelect(selectedId) {
+	  const sel = $('#redactPresetSelect');
+	  if (!sel) return;
+	  sel.innerHTML = '';
+	  const optDefault = document.createElement('option');
+	  optDefault.value = DEFAULT_PRESET_ID;
+	  optDefault.textContent = 'Default (🔒 Redacted)';
+	  sel.appendChild(optDefault);
+	  for (const p of presetState.presets) {
+	    const o = document.createElement('option');
+	    o.value = p.id;
+	    o.textContent = p.name;
+	    sel.appendChild(o);
+	  }
+	  if (selectedId && [...sel.options].some(o => o.value === selectedId)) {
+	    sel.value = selectedId;
+	  }
+	  // hide delete button for the built-in default
+	  const del = $('#redactPresetDelete');
+	  if (del) del.style.visibility = (sel.value === DEFAULT_PRESET_ID) ? 'hidden' : 'visible';
+	}
+
+	function loadPresetIntoTextarea(id) {
+	  const ta = $('#redactText');
+	  if (!ta) return;
+	  if (id === DEFAULT_PRESET_ID) {
+	    ta.value = DEFAULT_REDACT_TEXT;
+	  } else {
+	    const p = presetState.presets.find(p => p.id === id);
+	    if (p) ta.value = p.text;
+	  }
+	  saveSettings(); // persist the textarea value via the standard settings layer
+	}
+
+	function bindPresetHandlers() {
+	  const sel = $('#redactPresetSelect');
+	  const ta = $('#redactText');
+	  if (!sel || !ta) return;
+
+	  sel.addEventListener('change', () => {
+	    loadPresetIntoTextarea(sel.value);
+	    const del = $('#redactPresetDelete');
+	    if (del) del.style.visibility = (sel.value === DEFAULT_PRESET_ID) ? 'hidden' : 'visible';
+	  });
+
+	  $('#redactPresetSaveAs').addEventListener('click', () => {
+	    const name = prompt('Name this redaction message:');
+	    if (!name) return;
+	    const id = 'p_' + Date.now().toString(36);
+	    presetState.presets.push({ id, name: name.slice(0, 60), text: ta.value });
+	    savePresetState(presetState);
+	    refreshPresetSelect(id);
+	    log.info(`Saved redaction message "${name}".`);
+	  });
+
+	  $('#redactPresetUpdate').addEventListener('click', () => {
+	    if (sel.value === DEFAULT_PRESET_ID) {
+	      alert('The built-in default can\'t be overwritten. Use "Save as…" to make a copy.');
+	      return;
+	    }
+	    const p = presetState.presets.find(p => p.id === sel.value);
+	    if (!p) return;
+	    p.text = ta.value;
+	    savePresetState(presetState);
+	    log.info(`Updated "${p.name}".`);
+	  });
+
+	  $('#redactPresetDelete').addEventListener('click', () => {
+	    if (sel.value === DEFAULT_PRESET_ID) return;
+	    const idx = presetState.presets.findIndex(p => p.id === sel.value);
+	    if (idx === -1) return;
+	    const removed = presetState.presets[idx];
+	    if (!confirm(`Delete "${removed.name}"?`)) return;
+	    presetState.presets.splice(idx, 1);
+	    savePresetState(presetState);
+	    refreshPresetSelect(DEFAULT_PRESET_ID);
+	    loadPresetIntoTextarea(DEFAULT_PRESET_ID);
+	    log.info(`Deleted "${removed.name}".`);
+	  });
+
+	  $('#redactPresetReset').addEventListener('click', () => {
+	    sel.value = DEFAULT_PRESET_ID;
+	    loadPresetIntoTextarea(DEFAULT_PRESET_ID);
+	    refreshPresetSelect(DEFAULT_PRESET_ID);
+	  });
+	}
+
 	async function startAction() {
 	  console.log(PREFIX, 'startAction');
 	  // general
@@ -1633,6 +1791,8 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  //advanced
 	  const searchDelay = parseInt($('input#searchDelay').value.trim());
 	  const deleteDelay = parseInt($('input#deleteDelay').value.trim());
+	  // redact text
+	  const redactText = ($('#redactText') && $('#redactText').value) || DEFAULT_REDACT_TEXT;
 
 	  // token
 	  const authToken = $('input#token').value.trim() || fillToken();
@@ -1665,6 +1825,7 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	    searchDelay,
 	    deleteDelay,
 	    nukeMode,
+	    redactText,
 	    // maxAttempt: 2,
 	  };
 	  if (channelIds.length > 1) {
