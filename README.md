@@ -15,6 +15,14 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.4.1
+- "Before date" now defaults to **right now** (current local date + time)
+  every time the panel opens, instead of restoring whatever you last
+  typed. Most runs want "everything up to this moment," so a stale saved
+  value was misleading. You can still edit the field before hitting
+  Redact — it just won't sticky-persist across reloads. All other fields
+  still save/restore exactly as before.
+
 ### v5.4.0
 - Add a "Redaction message" panel to the GUI. The replacement text is now
   editable inline, and you can save any number of named presets (e.g. one

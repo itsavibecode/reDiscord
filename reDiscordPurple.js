@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.4.0
+// @version         5.4.1
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.4.0";
+	const VERSION = "5.4.1";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -1512,6 +1512,20 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  // restore previously-saved settings, then start tracking changes
 	  loadSettings();
 	  bindSettingsAutosave();
+
+	  // After all restore work is done, force "Before date" to the current
+	  // local datetime — overrides anything previously saved or seeded. The
+	  // user can still tweak it before hitting Redact.
+	  const maxDateEl = $('#maxDate');
+	  if (maxDateEl) maxDateEl.value = formatLocalDatetimeLocal(new Date());
+	}
+
+	// Format a Date as the value an <input type="datetime-local"> expects:
+	// YYYY-MM-DDTHH:MM in the user's local time, no timezone suffix.
+	function formatLocalDatetimeLocal(d) {
+	  const pad = n => String(n).padStart(2, '0');
+	  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+	         `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 	}
 
 	function printLog(type = '', args) {
@@ -1589,7 +1603,8 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  { id: 'minId',        prop: 'value' },
 	  { id: 'maxId',        prop: 'value' },
 	  { id: 'minDate',      prop: 'value' },
-	  { id: 'maxDate',      prop: 'value' },
+	  // maxDate intentionally NOT persisted — see initUI: it's always reset to
+	  // the current local datetime on load so "before this moment" is the default.
 	  { id: 'searchDelay',  prop: 'value' },
 	  { id: 'deleteDelay',  prop: 'value' },
 	  { id: 'redactText',   prop: 'value' },
