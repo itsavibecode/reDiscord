@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.5.0
+// @version         5.5.1
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.5.0";
+	const VERSION = "5.5.1";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -48,6 +48,10 @@
 #undiscord input[type="datetime-local"],
 #undiscord input[type="number"],
 #undiscord input[type="range"] { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-size: 16px; height: 44px; padding: 12px 10px; transition: border-color .2s ease-in-out; width: 100%; }
+/* Chrome's calendar picker icon is dark by default and disappears on our dark
+   background. Invert it so it shows up clearly on empty AND filled fields. */
+#undiscord input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1) brightness(1.2); cursor: pointer; opacity: 0.85; padding: 4px; }
+#undiscord input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 #undiscord textarea { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 10px; transition: border-color .2s ease-in-out; width: 100%; resize: vertical; min-height: 88px; }
 #undiscord .resolvedName { font-size: 12px; line-height: 16px; color: #c084fc; min-height: 16px; margin-bottom: 6px; font-weight: 600; font-family: var(--font-display); word-break: break-word; }
 #undiscord .resolvedName:empty { display: none; }

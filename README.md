@@ -15,6 +15,13 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.5.1
+- Fix the calendar-picker icon on the After / Before Date fields being
+  invisible against the dark purple background. Chrome's built-in
+  `::-webkit-calendar-picker-indicator` is a dark glyph by default and
+  blended into the panel — now inverted so it shows up cleanly on both
+  empty and filled fields.
+
 ### v5.5.0
 - **Fix: persistence has been silently broken since v5.3.0.** Discord
   deletes `window.localStorage` during app boot so that browser
