@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.4.1
+// @version         5.5.0
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.4.1";
+	const VERSION = "5.5.0";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -49,6 +49,10 @@
 #undiscord input[type="number"],
 #undiscord input[type="range"] { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-size: 16px; height: 44px; padding: 12px 10px; transition: border-color .2s ease-in-out; width: 100%; }
 #undiscord textarea { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 10px; transition: border-color .2s ease-in-out; width: 100%; resize: vertical; min-height: 88px; }
+#undiscord .resolvedName { font-size: 12px; line-height: 16px; color: #c084fc; min-height: 16px; margin-bottom: 6px; font-weight: 600; font-family: var(--font-display); word-break: break-word; }
+#undiscord .resolvedName:empty { display: none; }
+#undiscord .resolvedName.loading { color: #b89edd; font-style: italic; font-weight: 400; }
+#undiscord .resolvedName.err { color: #faa61a; font-weight: 400; }
 #undiscord textarea:focus { outline: none; border-color: #c084fc; }
 #undiscord select { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-size: 14px; height: 36px; padding: 6px 10px; width: 100%; }
 #undiscord select:focus { outline: none; border-color: #c084fc; }
@@ -203,6 +207,7 @@
                         Server ID
                         <a href="{{WIKI}}/guildId" title="Help" target="_blank" rel="noopener noreferrer">help</a>
                     </legend>
+                    <div class="resolvedName" id="guildIdLabel"></div>
                     <div class="multiInput">
                         <div class="input-wrapper">
                             <input class="input" id="guildId" type="text" priv>
@@ -215,6 +220,7 @@
                         Channel ID
                         <a href="{{WIKI}}/channelId" title="Help" target="_blank" rel="noopener noreferrer">help</a>
                     </legend>
+                    <div class="resolvedName" id="channelIdLabel"></div>
                     <div class="multiInput mb1">
                         <div class="input-wrapper">
                             <input class="input" id="channelId" type="text" priv>
@@ -344,8 +350,11 @@
                         Before date
                         <a href="{{WIKI}}/dateRange" title="Help" target="_blank" rel="noopener noreferrer">help</a>
                     </legend>
-                    <div class="input-wrapper">
-                        <input id="maxDate" type="datetime-local" title="Messages posted BEFORE this date">
+                    <div class="multiInput">
+                        <div class="input-wrapper">
+                            <input id="maxDate" type="datetime-local" title="Messages posted BEFORE this date">
+                        </div>
+                        <button id="maxDateNow" title="Fill with the current date and time">Today</button>
                     </div>
                     <div class="sectionDescription">
                         Redact messages that were posted between the two dates.
@@ -1417,11 +1426,18 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	    const guildId = $('input#guildId').value = getGuildId();
 	    if (guildId === '@me') $('input#channelId').value = getChannelId();
 	    saveSettings();
+	    updateGuildLabel();
+	    updateChannelLabel();
 	  };
 	  $('button#getChannel').onclick = () => {
 	    $('input#channelId').value = getChannelId();
 	    $('input#guildId').value = getGuildId();
 	    saveSettings();
+	    updateGuildLabel();
+	    updateChannelLabel();
+	  };
+	  $('button#maxDateNow').onclick = () => {
+	    $('#maxDate').value = formatLocalDatetimeLocal(new Date());
 	  };
 	  $('#redact').onchange = () => {
 	    const b = ui.undiscordWindow.classList.toggle('redact');
@@ -1506,8 +1522,22 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  // previously edited it). Then wire up the preset library.
 	  const ta = $('#redactText');
 	  if (ta) ta.value = DEFAULT_REDACT_TEXT;
+	  reloadPresetState();
 	  refreshPresetSelect(DEFAULT_PRESET_ID);
 	  bindPresetHandlers();
+
+	  // wire up Server/Channel ID → name lookups
+	  bindNameResolvers();
+
+	  // silently auto-fill the auth token at panel open so name resolution
+	  // works immediately — the user can still replace it manually.
+	  try {
+	    const tokenEl = $('input#token');
+	    if (tokenEl && !tokenEl.value) {
+	      const t = getToken();
+	      if (t) tokenEl.value = t;
+	    }
+	  } catch (e) { /* user can click 'fill' manually */ }
 
 	  // restore previously-saved settings, then start tracking changes
 	  loadSettings();
@@ -1518,6 +1548,10 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  // user can still tweak it before hitting Redact.
 	  const maxDateEl = $('#maxDate');
 	  if (maxDateEl) maxDateEl.value = formatLocalDatetimeLocal(new Date());
+
+	  // resolve labels for whatever IDs got restored
+	  updateGuildLabel();
+	  updateChannelLabel();
 	}
 
 	// Format a Date as the value an <input type="datetime-local"> expects:
@@ -1590,6 +1624,28 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  };
 	}
 
+	// ---- localStorage shim ----
+	// Discord deletes window.localStorage on app boot (so extensions can't read
+	// the auth token). We work around it the same way the script already does
+	// for getToken/getAuthorId: create a same-origin iframe and use its
+	// untouched window.localStorage. The underlying storage is shared, so
+	// writes from the iframe LS are readable to the iframe LS on the next load.
+	let _safeLSRef = null;
+	function safeLS() {
+	  if (_safeLSRef) return _safeLSRef;
+	  try {
+	    const iframe = document.createElement('iframe');
+	    iframe.style.display = 'none';
+	    document.body.appendChild(iframe);
+	    _safeLSRef = iframe.contentWindow.localStorage;
+	    // Leave the iframe attached — removing it may invalidate the reference.
+	  } catch (e) {
+	    console.warn(PREFIX, 'safeLS unavailable, persistence disabled', e);
+	    _safeLSRef = null;
+	  }
+	  return _safeLSRef;
+	}
+
 	// ---- Settings persistence ----
 	// Token is intentionally excluded — it's a credential and is auto-filled per session.
 	const SETTINGS_KEY = 'rediscord-purple-settings';
@@ -1620,13 +1676,15 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 
 	function saveSettings() {
 	  try {
+	    const ls = safeLS();
+	    if (!ls) return;
 	    const data = {};
 	    for (const f of PERSISTED_FIELDS) {
 	      const el = $('#' + f.id);
 	      if (!el) continue;
 	      data[f.id] = el[f.prop];
 	    }
-	    localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
+	    ls.setItem(SETTINGS_KEY, JSON.stringify(data));
 	  } catch (e) {
 	    console.warn(PREFIX, 'saveSettings failed', e);
 	  }
@@ -1635,7 +1693,8 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	function loadSettings() {
 	  let data = null;
 	  try {
-	    const raw = localStorage.getItem(SETTINGS_KEY);
+	    const ls = safeLS();
+	    const raw = ls && ls.getItem(SETTINGS_KEY);
 	    if (raw) data = JSON.parse(raw);
 	  } catch (e) {
 	    console.warn(PREFIX, 'loadSettings failed', e);
@@ -1678,7 +1737,8 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 
 	function loadPresetState() {
 	  try {
-	    const raw = localStorage.getItem(PRESETS_KEY);
+	    const ls = safeLS();
+	    const raw = ls && ls.getItem(PRESETS_KEY);
 	    if (raw) {
 	      const parsed = JSON.parse(raw);
 	      if (Array.isArray(parsed.presets)) return parsed;
@@ -1690,11 +1750,16 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	}
 
 	function savePresetState(state) {
-	  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(state)); }
-	  catch (e) { console.warn(PREFIX, 'savePresetState failed', e); }
+	  try {
+	    const ls = safeLS();
+	    if (ls) ls.setItem(PRESETS_KEY, JSON.stringify(state));
+	  } catch (e) { console.warn(PREFIX, 'savePresetState failed', e); }
 	}
 
-	const presetState = loadPresetState();
+	// Defer reading until initUI runs (document.body guaranteed available there);
+	// reloadPresetState() can refresh after a save if needed.
+	let presetState = { presets: [] };
+	function reloadPresetState() { presetState = loadPresetState(); }
 
 	function refreshPresetSelect(selectedId) {
 	  const sel = $('#redactPresetSelect');
@@ -1728,6 +1793,116 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	    if (p) ta.value = p.text;
 	  }
 	  saveSettings(); // persist the textarea value via the standard settings layer
+	}
+
+	// ---- Server/Channel name resolution ----
+	// Hit Discord's API with the user's auth token to translate a guild ID or
+	// channel ID into the human-readable name shown above the input.
+	const NAME_CACHE_KEY = 'rediscord-purple-name-cache';
+	let _nameCache = null;
+	function loadNameCache() {
+	  if (_nameCache) return _nameCache;
+	  try {
+	    const ls = safeLS();
+	    const raw = ls && ls.getItem(NAME_CACHE_KEY);
+	    if (raw) _nameCache = JSON.parse(raw);
+	  } catch (e) { console.warn(PREFIX, 'loadNameCache failed', e); }
+	  if (!_nameCache || typeof _nameCache !== 'object') _nameCache = {};
+	  if (!_nameCache.guilds) _nameCache.guilds = {};
+	  if (!_nameCache.channels) _nameCache.channels = {};
+	  return _nameCache;
+	}
+	function saveNameCache() {
+	  try {
+	    const ls = safeLS();
+	    if (ls && _nameCache) ls.setItem(NAME_CACHE_KEY, JSON.stringify(_nameCache));
+	  } catch (e) { console.warn(PREFIX, 'saveNameCache failed', e); }
+	}
+	function currentToken() {
+	  const tEl = $('#token');
+	  return (tEl && tEl.value.trim()) || '';
+	}
+	async function resolveGuildName(guildId) {
+	  if (!guildId) return '';
+	  if (guildId === '@me') return 'Direct Messages';
+	  const cache = loadNameCache();
+	  if (cache.guilds[guildId]) return cache.guilds[guildId];
+	  const token = currentToken();
+	  if (!token) return null; // signal: can't resolve, no token
+	  try {
+	    const r = await fetch(`https://discord.com/api/v9/guilds/${guildId}`, { headers: { 'Authorization': token } });
+	    if (!r.ok) return '';
+	    const j = await r.json();
+	    if (j && j.name) {
+	      cache.guilds[guildId] = j.name;
+	      saveNameCache();
+	      return j.name;
+	    }
+	  } catch (e) { console.warn(PREFIX, 'resolveGuildName failed', e); }
+	  return '';
+	}
+	async function resolveChannelName(channelId) {
+	  if (!channelId) return '';
+	  const cache = loadNameCache();
+	  if (cache.channels[channelId]) return cache.channels[channelId];
+	  const token = currentToken();
+	  if (!token) return null;
+	  try {
+	    const r = await fetch(`https://discord.com/api/v9/channels/${channelId}`, { headers: { 'Authorization': token } });
+	    if (!r.ok) return '';
+	    const j = await r.json();
+	    let name = j && j.name;
+	    // DMs have no name — synthesize from recipients
+	    if (!name && j && Array.isArray(j.recipients) && j.recipients.length) {
+	      name = j.recipients.map(u => u.global_name || u.username).filter(Boolean).join(', ');
+	    }
+	    if (name) {
+	      cache.channels[channelId] = name;
+	      saveNameCache();
+	      return name;
+	    }
+	  } catch (e) { console.warn(PREFIX, 'resolveChannelName failed', e); }
+	  return '';
+	}
+	function setLabel(labelEl, text, opts) {
+	  if (!labelEl) return;
+	  labelEl.classList.remove('loading', 'err');
+	  if (opts && opts.loading) labelEl.classList.add('loading');
+	  if (opts && opts.err) labelEl.classList.add('err');
+	  labelEl.textContent = text || '';
+	}
+	async function updateGuildLabel() {
+	  const label = $('#guildIdLabel');
+	  const id = ($('#guildId').value || '').trim();
+	  if (!id) { setLabel(label, ''); return; }
+	  setLabel(label, 'looking up…', { loading: true });
+	  const name = await resolveGuildName(id);
+	  if (name === null) setLabel(label, 'name unavailable (fill token first)', { err: true });
+	  else setLabel(label, name);
+	}
+	async function updateChannelLabel() {
+	  const label = $('#channelIdLabel');
+	  const raw = ($('#channelId').value || '').trim();
+	  if (!raw) { setLabel(label, ''); return; }
+	  // channelId field may contain a comma-separated list — only resolve the first one.
+	  const id = raw.split(/\s*,\s*/)[0];
+	  setLabel(label, 'looking up…', { loading: true });
+	  const name = await resolveChannelName(id);
+	  if (name === null) setLabel(label, 'name unavailable (fill token first)', { err: true });
+	  else setLabel(label, name ? '#' + name : '');
+	}
+	let _guildResolveT, _channelResolveT;
+	function bindNameResolvers() {
+	  const g = $('#guildId');
+	  const c = $('#channelId');
+	  if (g) g.addEventListener('input', () => {
+	    clearTimeout(_guildResolveT);
+	    _guildResolveT = setTimeout(updateGuildLabel, 400);
+	  });
+	  if (c) c.addEventListener('input', () => {
+	    clearTimeout(_channelResolveT);
+	    _channelResolveT = setTimeout(updateChannelLabel, 400);
+	  });
 	}
 
 	function bindPresetHandlers() {

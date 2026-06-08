@@ -15,6 +15,26 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.5.0
+- **Fix: persistence has been silently broken since v5.3.0.** Discord
+  deletes `window.localStorage` during app boot so that browser
+  extensions can't read the auth token, and our save/load layer was
+  writing into the deleted object. Re-routed every read/write through a
+  same-origin iframe's untouched `localStorage` (the same trick the
+  script already uses for `getToken`). Author/server/channel IDs, NSFW,
+  filter options, delays, dates, and the redaction-message presets now
+  actually stick across reloads.
+- Add a **Today** button next to "Before date" that fills the field
+  with the current local date and time in one click.
+- Add **resolved-name labels above Server ID and Channel ID**. As you
+  type or paste an ID, ReDiscord queries Discord's API and shows the
+  server/channel name above the input — so you know that
+  `1234567890` is actually `#wallstreetbets` before you hit Redact.
+  Lookups are cached per ID; DMs are labelled with their participants.
+- Auto-fill the auth token when the panel opens (silent — replaces no
+  manual override) so the name lookups work immediately without having
+  to click `fill` first.
+
 ### v5.4.1
 - "Before date" now defaults to **right now** (current local date + time)
   every time the panel opens, instead of restoring whatever you last
