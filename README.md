@@ -15,6 +15,13 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.5.2
+- Replace the After / Before Date calendar picker glyph with an explicit
+  purple SVG. The v5.5.1 `filter: invert()` fix wasn't reliable on the
+  wider After Date input — Chrome was rendering the default glyph in a
+  position where it appeared missing. Custom SVG eliminates the
+  browser-dependent positioning quirk.
+
 ### v5.5.1
 - Fix the calendar-picker icon on the After / Before Date fields being
   invisible against the dark purple background. Chrome's built-in

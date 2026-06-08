@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.5.1
+// @version         5.5.2
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.5.1";
+	const VERSION = "5.5.2";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -48,10 +48,24 @@
 #undiscord input[type="datetime-local"],
 #undiscord input[type="number"],
 #undiscord input[type="range"] { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-size: 16px; height: 44px; padding: 12px 10px; transition: border-color .2s ease-in-out; width: 100%; }
-/* Chrome's calendar picker icon is dark by default and disappears on our dark
-   background. Invert it so it shows up clearly on empty AND filled fields. */
-#undiscord input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1) brightness(1.2); cursor: pointer; opacity: 0.85; padding: 4px; }
-#undiscord input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+/* Chrome's default calendar picker glyph is a dark icon that vanishes on
+   our dark panel — and on wider inputs it can render in a position where it
+   looks missing entirely. Replace it with an explicit purple SVG so it
+   shows up reliably on every datetime-local input. */
+#undiscord input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c084fc'><path d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z'/></svg>");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: 20px 20px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  opacity: 1;
+  filter: none;
+  margin-left: 4px;
+  padding: 0;
+}
+#undiscord input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { opacity: 0.7; }
 #undiscord textarea { background-color: #1e1530; border: 1px solid #6b4fa0; border-radius: 8px; box-sizing: border-box; color: #e8d8ff; font-family: inherit; font-size: 13px; line-height: 1.4; padding: 10px; transition: border-color .2s ease-in-out; width: 100%; resize: vertical; min-height: 88px; }
 #undiscord .resolvedName { font-size: 12px; line-height: 16px; color: #c084fc; min-height: 16px; margin-bottom: 6px; font-weight: 600; font-family: var(--font-display); word-break: break-word; }
 #undiscord .resolvedName:empty { display: none; }
