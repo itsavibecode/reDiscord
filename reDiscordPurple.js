@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.5.3
+// @version         5.6.0
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.5.3";
+	const VERSION = "5.6.0";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -143,6 +143,11 @@
 #undiscord.hide-sidebar .sidebar { display: none; }
 #undiscord.hide-sidebar .main { max-width: 100%; }
 #undiscord #logArea { font-family: Consolas, Liberation Mono, Menlo, Courier, monospace; font-size: 0.75rem; overflow: auto; padding: 10px; user-select: text; flex-grow: 1; flex-grow: 1; cursor: auto; color: #e8d8ff; background-color: #1a1028; }
+#undiscord .rateLimitBanner { background-color: #3b2a13; color: #faa61a; border-left: 4px solid #faa61a; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.4; }
+#undiscord .rateLimitBanner .bannerText { flex: 1; }
+#undiscord .rateLimitBanner .bannerText b { color: #ffcc66; }
+#undiscord .rateLimitBanner .bannerActions { display: flex; gap: 4px; flex-shrink: 0; }
+#undiscord .rateLimitBanner .bannerActions button { width: auto; height: 28px; min-width: 0; min-height: 0; padding: 0 10px; font-size: 12px; }
 #undiscord .tbar { padding: 8px; background-color: #3b2a5a; }
 #undiscord .tbar button { margin-right: 4px; margin-bottom: 4px; }
 #undiscord .footer { cursor: se-resize; padding-right: 30px; background-color: #2a1f3d; }
@@ -458,6 +463,13 @@
                 </div>
                 <div class="row">
                     <progress id="progressBar" style="display:none;"></progress>
+                </div>
+            </div>
+            <div id="rateLimitBanner" class="rateLimitBanner" style="display:none;">
+                <div class="bannerText"></div>
+                <div class="bannerActions">
+                    <button id="rateLimitApply" class="positive">Apply</button>
+                    <button id="rateLimitDismiss">Dismiss</button>
                 </div>
             </div>
             <pre id="logArea" class="logarea scroll">
@@ -1570,6 +1582,9 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  // resolve labels for whatever IDs got restored
 	  updateGuildLabel();
 	  updateChannelLabel();
+
+	  // If last session got rate-limited, surface a banner offering safer delays.
+	  showRateLimitBanner();
 	}
 
 	// Format a Date as the value an <input type="datetime-local"> expects:
@@ -1639,6 +1654,14 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	    ui.undiscordBtn.classList.remove('running');
 	    ui.progressMain.style.display = 'none';
 	    ui.percent.style.display = 'none';
+	    // Remember rate-limit warnings so the next panel open can offer a
+	    // safer delay. Only persist if anything actually got throttled —
+	    // a clean run wipes the slate.
+	    if (stats && stats.throttledCount > 0) {
+	      persistSessionStats(state, stats, undiscordCore.options);
+	    } else {
+	      clearLastSessionStats();
+	    }
 	  };
 	}
 
@@ -1745,6 +1768,96 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	    if (!el) continue;
 	    el.addEventListener('change', saveSettings);
 	  }
+	}
+
+	// ---- Rate-limit memory ----
+	// Persist throttle stats from each completed run so we can offer the user
+	// a safer delay next time they open the panel. Only stored when the run
+	// actually got rate-limited.
+	const LAST_SESSION_KEY = 'rediscord-purple-last-session';
+	function persistSessionStats(state, stats, optionsUsed) {
+	  try {
+	    const ls = safeLS();
+	    if (!ls) return;
+	    const data = {
+	      throttledCount: stats.throttledCount || 0,
+	      throttledTotalTime: stats.throttledTotalTime || 0,
+	      searchDelay: optionsUsed.searchDelay,
+	      deleteDelay: optionsUsed.deleteDelay,
+	      delCount: state.delCount || 0,
+	      failCount: state.failCount || 0,
+	      endTime: new Date().toISOString(),
+	    };
+	    ls.setItem(LAST_SESSION_KEY, JSON.stringify(data));
+	  } catch (e) { console.warn(PREFIX, 'persistSessionStats failed', e); }
+	}
+	function loadLastSessionStats() {
+	  try {
+	    const ls = safeLS();
+	    const raw = ls && ls.getItem(LAST_SESSION_KEY);
+	    if (raw) return JSON.parse(raw);
+	  } catch (e) { console.warn(PREFIX, 'loadLastSessionStats failed', e); }
+	  return null;
+	}
+	function clearLastSessionStats() {
+	  try {
+	    const ls = safeLS();
+	    if (ls) ls.removeItem(LAST_SESSION_KEY);
+	  } catch (e) { console.warn(PREFIX, 'clearLastSessionStats failed', e); }
+	}
+
+	// Recommend a higher delay pair based on last session's throttle stats.
+	// Returns null if nothing meaningful to suggest (no throttles, or the
+	// current sliders are already at-or-above where we'd recommend).
+	function recommendDelays(last) {
+	  if (!last || !last.throttledCount) return null;
+	  const avgThrottle = last.throttledTotalTime / last.throttledCount;
+	  // Bump search delay by half the avg throttle time we measured, snap to 100ms.
+	  let recSearch = Math.round((last.searchDelay + avgThrottle * 0.5) / 100) * 100;
+	  recSearch = Math.min(60000, Math.max(last.searchDelay + 1000, recSearch));
+	  // Bump edit delay 25% (no throttle data per-message, but bumping helps), snap to 50ms.
+	  let recDelete = Math.round((last.deleteDelay * 1.25) / 50) * 50;
+	  recDelete = Math.min(10000, Math.max(last.deleteDelay + 100, recDelete));
+	  // Don't pester the user if their current sliders are already as high or higher.
+	  const curSearch = parseInt(($('#searchDelay') || {}).value) || last.searchDelay;
+	  const curDelete = parseInt(($('#deleteDelay') || {}).value) || last.deleteDelay;
+	  if (recSearch <= curSearch && recDelete <= curDelete) return null;
+	  return {
+	    searchDelay: Math.max(recSearch, curSearch),
+	    deleteDelay: Math.max(recDelete, curDelete),
+	  };
+	}
+
+	function showRateLimitBanner() {
+	  const last = loadLastSessionStats();
+	  const rec = recommendDelays(last);
+	  const banner = $('#rateLimitBanner');
+	  if (!banner) return;
+	  if (!rec) { banner.style.display = 'none'; return; }
+	  const seconds = Math.round((last.throttledTotalTime || 0) / 1000);
+	  const text = banner.querySelector('.bannerText');
+	  text.innerHTML =
+	    `⚠️ Last run was rate-limited <b>${last.throttledCount}×</b>` +
+	    (seconds ? ` (${seconds}s total cooldown)` : '') + '. ' +
+	    `Bump <b>Search delay</b> ${last.searchDelay}ms → <b>${rec.searchDelay}ms</b> and ` +
+	    `<b>Edit delay</b> ${last.deleteDelay}ms → <b>${rec.deleteDelay}ms</b>?`;
+	  banner.style.display = 'flex';
+	  $('#rateLimitApply').onclick = () => {
+	    const sd = $('#searchDelay');
+	    const dd = $('#deleteDelay');
+	    if (sd) { sd.value = rec.searchDelay; $('#searchDelayValue').textContent = rec.searchDelay + 'ms'; }
+	    if (dd) { dd.value = rec.deleteDelay; $('#deleteDelayValue').textContent = rec.deleteDelay + 'ms'; }
+	    undiscordCore.options.searchDelay = rec.searchDelay;
+	    undiscordCore.options.deleteDelay = rec.deleteDelay;
+	    saveSettings();
+	    clearLastSessionStats();
+	    banner.style.display = 'none';
+	    log.info(`Applied safer delays: search ${rec.searchDelay}ms, edit ${rec.deleteDelay}ms.`);
+	  };
+	  $('#rateLimitDismiss').onclick = () => {
+	    clearLastSessionStats();
+	    banner.style.display = 'none';
+	  };
 	}
 
 	// ---- Redaction-message presets ----

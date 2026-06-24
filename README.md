@@ -15,6 +15,18 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.6.0
+- Remember rate-limit warnings across sessions. The script already
+  tracked Discord's 429 throttles per run (count + total cooldown time)
+  but discarded them at run end. Now: at run completion, if any
+  throttles happened, the stats are persisted to localStorage. Next
+  time the panel opens, a yellow banner appears above the log area
+  with a recommended Search delay and Edit delay derived from how
+  badly the last run got throttled — click **Apply** to push the new
+  values into the sliders + the saved settings, or **Dismiss** to keep
+  what you have. A clean (un-throttled) run wipes the slate so the
+  banner doesn't pester.
+
 ### v5.5.3
 - Reword the log-area welcome line to clarify that this is a revised
   fork rather than the original project. The star link still points at
