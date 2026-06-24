@@ -15,6 +15,13 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.7.0
+- Add an optional **Light mode** with the same purple accents. Toggle
+  it from the top toolbar (next to Streamer mode). Surfaces switch to
+  near-white backgrounds, text to dark purple, and all the accent
+  colors stay purple so the script still feels like the same tool.
+  Selection persists across reloads via the existing settings layer.
+
 ### v5.6.0
 - Remember rate-limit warnings across sessions. The script already
   tracked Discord's 429 throttles per run (count + total cooldown time)

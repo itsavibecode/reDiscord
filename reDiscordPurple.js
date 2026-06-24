@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.6.0
+// @version         5.7.0
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.6.0";
+	const VERSION = "5.7.0";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -175,6 +175,75 @@
 [name="grab-tr"] { top: 0px; right: 0px; width: var(--corner-size); height: var(--corner-size); margin-top: var(--offset); margin-right: var(--offset); cursor: nesw-resize; }
 [name="grab-br"] { bottom: 0px; right: 0px; width: var(--corner-size); height: var(--corner-size); margin-bottom: var(--offset); margin-right: var(--offset); cursor: nwse-resize; }
 [name="grab-bl"] { bottom: 0px; left: 0px; width: var(--corner-size); height: var(--corner-size); margin-bottom: var(--offset); margin-left: var(--offset); cursor: nesw-resize; }
+`);
+
+	// Light theme — keeps the purple accents, swaps surfaces to light.
+	// Applied by toggling .theme-light on #undiscord. All selectors below are
+	// overrides, not full duplicates — anything not redeclared inherits the
+	// dark theme value.
+	var lightCss = (`
+#undiscord.theme-light { color: #2a1f3d; background-color: #faf7ff; box-shadow: 0 8px 32px rgba(124,58,237,0.18), 0 0 0 1px #c084fc; border-color: #c084fc; }
+#undiscord.theme-light.browser { border: 1px solid #c084fc; box-shadow: 0 8px 32px rgba(124,58,237,0.18); }
+#undiscord.theme-light.container, #undiscord.theme-light .container { background-color: #faf7ff; }
+#undiscord.theme-light .header { background-color: #ede0f5; color: #2a1f3d; }
+#undiscord.theme-light .header h3 { color: #2a1f3d; }
+#undiscord.theme-light .header .icon { color: #7c3aed; }
+#undiscord.theme-light .header .icon:hover { color: #2a1f3d; }
+#undiscord.theme-light .header .vert-divider { background-color: #c084fc; }
+#undiscord.theme-light legend, #undiscord.theme-light label { color: #6b4fa0; }
+#undiscord.theme-light .multiInput { color: #2a1f3d; background-color: transparent; }
+#undiscord.theme-light .input { color: #2a1f3d; background-color: #ffffff; border-color: #c084fc; }
+#undiscord.theme-light .input-wrapper { color: #2a1f3d; background-color: transparent; }
+#undiscord.theme-light input[type="text"],
+#undiscord.theme-light input[type="search"],
+#undiscord.theme-light input[type="password"],
+#undiscord.theme-light input[type="datetime-local"],
+#undiscord.theme-light input[type="number"],
+#undiscord.theme-light input[type="range"] { background-color: #ffffff; border-color: #c084fc; color: #2a1f3d; }
+#undiscord.theme-light textarea { background-color: #ffffff; border-color: #c084fc; color: #2a1f3d; }
+#undiscord.theme-light select { background-color: #ffffff; border-color: #c084fc; color: #2a1f3d; }
+#undiscord.theme-light input:focus,
+#undiscord.theme-light textarea:focus,
+#undiscord.theme-light select:focus { border-color: #7c3aed; }
+#undiscord.theme-light .resolvedName { color: #7c3aed; }
+#undiscord.theme-light .resolvedName.loading { color: #6b4fa0; }
+#undiscord.theme-light .resolvedName.err { color: #c2410c; }
+#undiscord.theme-light .divider, #undiscord.theme-light hr { border-bottom-color: #c084fc; }
+#undiscord.theme-light .sectionDescription { color: #6b4fa0; }
+#undiscord.theme-light a { color: #7c3aed; }
+#undiscord.theme-light a:hover { color: #4c1d95; }
+#undiscord.theme-light .btn, #undiscord.theme-light button { color: #ffffff; background-color: #7c3aed; }
+#undiscord.theme-light button:hover { background-color: #6d28d9; }
+#undiscord.theme-light .accent { background-color: #7c3aed; }
+#undiscord.theme-light .danger { background-color: #dc2626; }
+#undiscord.theme-light .danger:hover { background-color: #b91c1c; }
+#undiscord.theme-light .positive { background-color: #16a34a; }
+#undiscord.theme-light .info { color: #6b4fa0; }
+#undiscord.theme-light .scroll::-webkit-scrollbar-thumb { background-color: #c084fc; }
+#undiscord.theme-light .scroll::-webkit-scrollbar-track { background-color: #ede0f5; border-color: #ede0f5; }
+#undiscord.theme-light.redact x:not(:active) { background-color: #ede0f5 !important; color: transparent !important; }
+#undiscord.theme-light.redact x:hover::after { background-color: #faf7ff; color: #2a1f3d; border-color: #c084fc; box-shadow: 0 4px 12px rgba(124,58,237,0.15); }
+#undiscord.theme-light .log-debug { color: #2a1f3d; }
+#undiscord.theme-light .log-info { color: #0369a1; }
+#undiscord.theme-light .log-verb { color: #6b4fa0; }
+#undiscord.theme-light .log-warn { color: #b45309; }
+#undiscord.theme-light .log-error { color: #b91c1c; }
+#undiscord.theme-light .log-success { color: #15803d; }
+#undiscord.theme-light .sidebar { background-color: #f0e8f8; }
+#undiscord.theme-light .main { background-color: #f5f0fa; }
+#undiscord.theme-light #logArea { background-color: #ffffff; color: #2a1f3d; }
+#undiscord.theme-light .tbar { background-color: #ede0f5; }
+#undiscord.theme-light .footer { background-color: #faf7ff; }
+#undiscord.theme-light #progressPercent { color: #6b4fa0; }
+#undiscord.theme-light summary { color: #7c3aed; }
+#undiscord.theme-light summary:hover { color: #2a1f3d; background-color: #ede0f5; }
+#undiscord.theme-light .resize-handle { background: repeating-linear-gradient(0, #c084fc, #c084fc 1px, transparent 2px, transparent 4px); }
+#undiscord.theme-light .rateLimitBanner { background-color: #fef3c7; color: #92400e; border-left-color: #d97706; }
+#undiscord.theme-light .rateLimitBanner .bannerText b { color: #b45309; }
+/* The top-of-log "EDITS messages…" warning uses an inline style in the
+   template (so it survives logArea clears). The .dangerBanner class is
+   added in initUI so this rule can override it in light mode. */
+#undiscord.theme-light .dangerBanner { background: #fee2e2 !important; color: #b91c1c !important; }
 `);
 
 	var buttonHtml = (`
@@ -460,6 +529,9 @@
                     <label class="row" title="Hide sensitive information on your screen for taking screenshots">
                         <input id="redact" type="checkbox" checked> Streamer mode
                     </label>
+                    <label class="row" title="Switch to light theme with purple accents">
+                        <input id="themeLight" type="checkbox"> Light mode
+                    </label>
                 </div>
                 <div class="row">
                     <progress id="progressBar" style="display:none;"></progress>
@@ -473,7 +545,7 @@
                 </div>
             </div>
             <pre id="logArea" class="logarea scroll">
-                <div class="" style="background: #3b1f1f; color:#f87171; padding: .5em; border-radius:4px;">⚠️ This tool EDITS messages, replacing content with the redaction text. Messages with attachments are DELETED. Enable ☢️ Nuke Mode to delete everything. This cannot be undone.</div>
+                <div class="dangerBanner" style="background: #3b1f1f; color:#f87171; padding: .5em; border-radius:4px;">⚠️ This tool EDITS messages, replacing content with the redaction text. Messages with attachments are DELETED. Enable ☢️ Nuke Mode to delete everything. This cannot be undone.</div>
                 <center>
                     <div>This is a revised fork — star the original <a href="{{HOME}}" target="_blank" rel="noopener noreferrer">Undiscord</a> on GitHub!</div>
                     <div><a href="{{HOME}}/discussions" target="_blank" rel="noopener noreferrer">Issues or help</a></div>
@@ -1406,6 +1478,7 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  insertCss(themeCss);
 	  insertCss(mainCss);
 	  insertCss(dragCss);
+	  insertCss(lightCss);
 
 	  // create undiscord window
 	  const undiscordUI = replaceInterpolations(undiscordTemplate, {
@@ -1472,6 +1545,9 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  $('#redact').onchange = () => {
 	    const b = ui.undiscordWindow.classList.toggle('redact');
 	    if (b) alert('This mode will attempt to hide personal information, so you can screen share / take screenshots.\nAlways double check you are not sharing sensitive information!');
+	  };
+	  $('#themeLight').onchange = (e) => {
+	    ui.undiscordWindow.classList.toggle('theme-light', e.target.checked);
 	  };
 	  $('#pickMessageAfter').onclick = async () => {
 	    alert('Select a message on the chat.\nThe message below it will be redacted.');
@@ -1712,6 +1788,7 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  { id: 'hasFile',        prop: 'checked' },
 	  { id: 'includePinned',  prop: 'checked' },
 	  { id: 'redact',         prop: 'checked' },
+	  { id: 'themeLight',     prop: 'checked' },
 	  { id: 'autoScroll',     prop: 'checked' },
 	];
 
@@ -1755,6 +1832,8 @@ body.undiscord-pick-message.after [id^="message-content-"]:hover::after {
 	  if (dd) $('#deleteDelayValue').textContent = dd.value + 'ms';
 	  const redactCb = $('#redact');
 	  if (redactCb) ui.undiscordWindow.classList.toggle('redact', redactCb.checked);
+	  const themeLightCb = $('#themeLight');
+	  if (themeLightCb) ui.undiscordWindow.classList.toggle('theme-light', themeLightCb.checked);
 	  // mirror restored delays into core options so they take effect immediately
 	  const sdv = parseInt(($('#searchDelay') || {}).value);
 	  if (sdv) undiscordCore.options.searchDelay = sdv;
