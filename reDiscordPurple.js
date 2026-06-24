@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            ReDiscord - Purple
 // @description     Delete all messages in a Discord channel or DM (Bulk deletion)
-// @version         5.5.2
+// @version         5.5.3
 // @author          victornpb, itsavibecode
 // @homepageURL     https://github.com/victornpb/undiscord
 // @supportURL      https://github.com/victornpb/undiscord/discussions
@@ -21,7 +21,7 @@
 	'use strict';
 
 	/* rollup-plugin-baked-env */
-	const VERSION = "5.5.2";
+	const VERSION = "5.5.3";
 
 	var themeCss = (`
 /* undiscord window — purple theme */
@@ -463,7 +463,7 @@
             <pre id="logArea" class="logarea scroll">
                 <div class="" style="background: #3b1f1f; color:#f87171; padding: .5em; border-radius:4px;">⚠️ This tool EDITS messages, replacing content with the redaction text. Messages with attachments are DELETED. Enable ☢️ Nuke Mode to delete everything. This cannot be undone.</div>
                 <center>
-                    <div>Star <a href="{{HOME}}" target="_blank" rel="noopener noreferrer">this project</a> on GitHub!</div>
+                    <div>This is a revised fork — star the original <a href="{{HOME}}" target="_blank" rel="noopener noreferrer">Undiscord</a> on GitHub!</div>
                     <div><a href="{{HOME}}/discussions" target="_blank" rel="noopener noreferrer">Issues or help</a></div>
                 </center>
             </pre>

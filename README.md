@@ -15,6 +15,12 @@ Tampermonkey will auto-update from `main`.
 
 ## Changelog
 
+### v5.5.3
+- Reword the log-area welcome line to clarify that this is a revised
+  fork rather than the original project. The star link still points at
+  victornpb/undiscord (the upstream) since that's the foundational
+  project worth supporting.
+
 ### v5.5.2
 - Replace the After / Before Date calendar picker glyph with an explicit
   purple SVG. The v5.5.1 `filter: invert()` fix wasn't reliable on the
